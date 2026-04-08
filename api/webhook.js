@@ -1,29 +1,30 @@
-export default function handler(req, res) {
-  // ✅ GET (Webhook validation)
+export default async function handler(req, res) {
+
+  // ✅ Health check (Gupshup validation)
   if (req.method === "GET") {
     return res.status(200).send("Webhook is live ✅");
   }
 
-  // ✅ POST (Incoming messages)
   if (req.method === "POST") {
     try {
+      console.log("Incoming:", JSON.stringify(req.body));
+
+      // ✅ Extract data safely from Gupshup payload
       const body = req.body || {};
 
-      // ✅ DEBUG (VERY IMPORTANT)
-      console.log("FULL BODY:", JSON.stringify(body, null, 2));
+      const from =
+        body?.payload?.sender?.phone ||
+        body?.sender?.phone ||
+        "unknown";
 
-      // ✅ Gupshup payload parsing
-      const from = body?.payload?.sender?.phone || "unknown";
-      const message = body?.payload?.payload?.text || "";
+      const message =
+        body?.payload?.payload?.text ||
+        body?.payload?.text ||
+        "";
 
-      // ✅ Prevent crash if no message
-      if (!message) {
-        return res.status(200).send("No message received");
-      }
-
-      // ✅ Memory store (temporary)
-      const users = global.users || {};
-      global.users = users;
+      // ✅ Memory (temporary)
+      global.users = global.users || {};
+      const users = global.users;
 
       if (!users[from]) {
         users[from] = {
@@ -139,15 +140,15 @@ export default function handler(req, res) {
           );
       }
 
-      // ✅ Save state
       users[from] = {
         state: result.nextState,
         context: result.newContext
       };
 
-      // ✅ IMPORTANT: Gupshup needs 200 fast
+      // ✅ CRITICAL: Gupshup expects THIS format
       return res.status(200).json({
-        reply: result.reply
+        type: "text",
+        text: result.reply
       });
 
     } catch (err) {
