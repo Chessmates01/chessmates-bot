@@ -1,17 +1,27 @@
 export default function handler(req, res) {
-  // ✅ Handle GET (for webhook validation)
+  // ✅ GET (Webhook validation)
   if (req.method === "GET") {
     return res.status(200).send("Webhook is live ✅");
   }
 
-  // ✅ Handle POST
+  // ✅ POST (Incoming messages)
   if (req.method === "POST") {
     try {
-      // ✅ Safe body handling
       const body = req.body || {};
-      const from = body.from || "unknown";
-      const message = body.message || "";
 
+      // ✅ DEBUG (VERY IMPORTANT)
+      console.log("FULL BODY:", JSON.stringify(body, null, 2));
+
+      // ✅ Gupshup payload parsing
+      const from = body?.payload?.sender?.phone || "unknown";
+      const message = body?.payload?.payload?.text || "";
+
+      // ✅ Prevent crash if no message
+      if (!message) {
+        return res.status(200).send("No message received");
+      }
+
+      // ✅ Memory store (temporary)
       const users = global.users || {};
       global.users = users;
 
@@ -42,7 +52,11 @@ export default function handler(req, res) {
 
       switch (user.state) {
         case "NEW":
-          result = createResponse("Hi! 😊 Can I know your child's name?", "ASK_CHILD_NAME", context);
+          result = createResponse(
+            "Hi! 😊 Can I know your child's name?",
+            "ASK_CHILD_NAME",
+            context
+          );
           break;
 
         case "ASK_CHILD_NAME":
@@ -53,7 +67,11 @@ export default function handler(req, res) {
               { ...context, child_name: intent.name }
             );
           } else {
-            result = createResponse("Please share your child's name 😊", "ASK_CHILD_NAME", context);
+            result = createResponse(
+              "Please share your child's name 😊",
+              "ASK_CHILD_NAME",
+              context
+            );
           }
           break;
 
@@ -65,7 +83,11 @@ export default function handler(req, res) {
               { ...context, child_age: intent.age }
             );
           } else {
-            result = createResponse("Please tell me your child's age 😊", "ASK_CHILD_AGE", context);
+            result = createResponse(
+              "Please tell me your child's age 😊",
+              "ASK_CHILD_AGE",
+              context
+            );
           }
           break;
 
@@ -102,7 +124,11 @@ export default function handler(req, res) {
           break;
 
         case "SHOW_SLOTS":
-          result = createResponse("Done! Your trial class is booked 🎉", "BOOKED", context);
+          result = createResponse(
+            "Done! Your trial class is booked 🎉",
+            "BOOKED",
+            context
+          );
           break;
 
         default:
@@ -113,16 +139,20 @@ export default function handler(req, res) {
           );
       }
 
+      // ✅ Save state
       users[from] = {
         state: result.nextState,
         context: result.newContext
       };
 
-      return res.status(200).json({ reply: result.reply });
+      // ✅ IMPORTANT: Gupshup needs 200 fast
+      return res.status(200).json({
+        reply: result.reply
+      });
 
     } catch (err) {
-      console.error(err);
-      return res.status(200).send("Error handled"); // IMPORTANT: always return 200
+      console.error("ERROR:", err);
+      return res.status(200).send("Error handled");
     }
   }
 
