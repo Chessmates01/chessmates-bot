@@ -2,6 +2,11 @@
 const express = require("express");
 const app = express();
 
+// ✅ ADD HERE
+app.get("/webhook/whatsapp", (req, res) => {
+  res.send("Webhook is live ✅");
+});
+
 app.use(express.json());
 
 // Temporary user storage
